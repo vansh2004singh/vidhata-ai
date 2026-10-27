@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vidhata AI — Autonomous Code Remediation Agent</title>
+
+  <!-- Google Fonts: JetBrains Mono & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            obsidian: {
+              950: '#04060a',
+              900: '#070a10',
+              850: '#0b0f19',
+              800: '#111827',
+              700: '#1b2337',
+              600: '#2a344d',
+            },
+            cyanAccent: {
+              DEFAULT: '#00e5ff',
+              glow: 'rgba(0, 229, 255, 0.25)',
+              dim: '#00e5ff18'
+            },
+            tealAccent: '#00d2b4',
+            goldAccent: '#f59e0b',
+          },
+          animation: {
+            'spin-slow': 'spin 6s linear infinite',
+            'pulse-glow': 'pulseGlow 2s ease-in-out infinite',
+          },
+          keyframes: {
+            pulseGlow: {
+              '0%, 100%': { opacity: '0.4', transform: 'scale(1)' },
+              '50%': { opacity: '0.8', transform: 'scale(1.05)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #070a10;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #00e5ff60;
+    }
+
+    .diff-add {
+      background: rgba(16, 185, 129, 0.12);
+      border-left: 3px solid #10b981;
+      color: #34d399;
+    }
+    .diff-del {
+      background: rgba(239, 68, 68, 0.12);
+      border-left: 3px solid #ef4444;
+      color: #f87171;
+    }
+    .diff-context {
+      border-left: 3px solid transparent;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+
+<body class="bg-obsidian-950 text-slate-100 font-sans antialiased selection:bg-cyanAccent selection:text-obsidian-950 min-h-screen overflow-x-hidden">
+
+  <!-- ======================================================== -->
+  <!-- 1. INITIAL MINIMAL LOADING SCREEN (Transitions out auto) -->
+  <!-- ======================================================== -->
+  <div id="loading-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-obsidian-950 transition-opacity duration-700 ease-out select-none">
+    
+    <!-- Neon Backdrop Glow -->
+    <div class="relative flex items-center justify-center">
+      <div class="absolute w-48 h-48 bg-cyanAccent/20 rounded-full blur-3xl animate-pulse-glow"></div>
+      
+      <!-- Brand Logo SVG -->
+      <div class="relative w-24 h-24 rounded-3xl bg-gradient-to-tr from-cyanAccent via-tealAccent to-goldAccent p-[2px] shadow-2xl shadow-cyanAccent/30">
+        <div class="w-full h-full bg-obsidian-950 rounded-[22px] flex items-center justify-center">
+          <svg class="w-12 h-12 text-cyanAccent animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Title & Status -->
+    <div class="mt-8 text-center">
+      <h1 class="text-2xl font-bold tracking-tight text-white flex items-center justify-center gap-2">
+        Vidhata<span class="text-cyanAccent">.ai</span>
+      </h1>
+      <p id="loading-text" class="text-xs font-mono text-cyanAccent mt-2 tracking-wide uppercase">
+        Initializing Vidhata AI Agent Kernel...
+      </p>
+
+      <!-- Minimal Progress Bar -->
+      <div class="w-56 h-1 bg-obsidian-850 rounded-full mt-5 overflow-hidden mx-auto border border-obsidian-700">
+        <div id="loading-bar" class="h-full bg-gradient-to-r from-cyanAccent to-tealAccent w-0 transition-all duration-[1600ms] ease-out"></div>
+      </div>
+      <div class="text-[11px] font-mono text-slate-500 mt-2">Privacy-First • Local Autonomous Remediation</div>
+    </div>
+  </div>
+
+
+  <!-- ======================================================== -->
+  <!-- 2. MAIN APPLICATION WORKFLOW SCREEN                      -->
+  <!-- ======================================================== -->
+  <div id="main-app" class="opacity-0 transition-opacity duration-700 min-h-screen flex flex-col">
+    
+    <!-- Top Navigation Header -->
+    <header class="border-b border-obsidian-700/80 bg-obsidian-900/90 backdrop-blur-md sticky top-0 z-40">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
+        
+        <!-- Brand -->
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyanAccent to-tealAccent p-0.5">
+            <div class="w-full h-full bg-obsidian-950 rounded-[10px] flex items-center justify-center">
+              <svg class="w-4 h-4 text-cyanAccent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="m18 16 4-4-4-4"/>
+                <path d="m6 8-4 4 4 4"/>
+                <path d="m14.5 4-5 16"/>
+              </svg>
+            </div>
+          </div>
+          <div>
+            <div class="font-bold text-base tracking-tight text-white leading-none">
+              Vidhata<span class="text-cyanAccent"> AI</span>
+            </div>
+            <div class="text-[10px] font-mono text-slate-400 mt-0.5">Autonomous Code Remediation Agent</div>
+          </div>
+        </div>
+
+        <!-- Engine Status Badge & Actions -->
+        <div class="flex items-center gap-4">
+          <div class="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-obsidian-850 border border-obsidian-700 text-xs font-mono text-slate-300">
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span>Kernel: <strong class="text-cyanAccent">Ollama Local vLLM</strong></span>
+          </div>
+
+          <button onclick="restartWorkflow()" class="px-3 py-1.5 rounded-lg bg-obsidian-800 hover:bg-obsidian-700 border border-obsidian-700 text-xs font-mono text-slate-300 hover:text-white transition flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span>Reset Agent</span>
+          </button>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- Main Content Flow Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full space-y-8">
+      
+      <!-- STEP 1: Repository Input & Analysis Config -->
+      <section class="bg-obsidian-900 border border-obsidian-800 rounded-2xl p-5 sm:p-6 shadow-xl relative overflow-hidden">
+        <div class="absolute -right-20 -top-20 w-60 h-60 bg-cyanAccent/5 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded text-[11px] font-mono bg-cyanAccent/10 text-cyanAccent border border-cyanAccent/20">STEP 1</span>
+              <h2 class="text-lg font-bold text-white tracking-tight">Repository Target & Analysis Config</h2>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">Provide your GitHub/GitLab repo or choose a pre-configured vulnerable codebase testbed.</p>
+          </div>
+
+          <!-- Presets -->
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs font-mono text-slate-400">Presets:</span>
+            <button onclick="selectPreset('express')" class="px-2.5 py-1 rounded-md bg-obsidian-800 hover:bg-obsidian-700 border border-obsidian-700 text-xs font-mono text-cyanAccent transition">
+              express-jwt-race
+            </button>
+            <button onclick="selectPreset('stripe')" class="px-2.5 py-1 rounded-md bg-obsidian-800 hover:bg-obsidian-700 border border-obsidian-700 text-xs font-mono text-tealAccent transition">
+              stripe-webhook-null
+            </button>
+            <button onclick="selectPreset('fastapi')" class="px-2.5 py-1 rounded-md bg-obsidian-800 hover:bg-obsidian-700 border border-obsidian-700 text-xs font-mono text-goldAccent transition">
+              fastapi-sql-injection
+            </button>
+          </div>
+        </div>
+
+        <!-- Input Form -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+          
+          <!-- Repo URL -->
+          <div class="md:col-span-7 relative">
+            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+              </svg>
+            </div>
+            <input id="repo-url-input" type="text" value="https://github.com/acme-corp/express-jwt-service" placeholder="https://github.com/org/repo" class="w-full bg-obsidian-950 border border-obsidian-700 rounded-xl pl-10 pr-4 py-3 text-xs sm:text-sm font-mono text-slate-200 focus:outline-none focus:border-cyanAccent transition" />
+          </div>
+
+          <!-- Branch -->
+          <div class="md:col-span-2">
+            <select id="branch-select" class="w-full bg-obsidian-950 border border-obsidian-700 rounded-xl px-3 py-3 text-xs sm:text-sm font-mono text-slate-200 focus:outline-none focus:border-cyanAccent transition cursor-pointer">
+              <option value="main">branch: main</option>
+              <option value="develop">branch: develop</option>
+              <option value="staging">branch: staging</option>
+            </select>
+          </div>
+
+          <!-- Action Button -->
+          <div class="md:col-span-3">
+            <button id="inspect-btn" onclick="startAutonomousInspection()" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyanAccent to-tealAccent text-obsidian-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-cyanAccent/30 hover:scale-[1.01] active:scale-[0.99] transition">
+              <svg class="w-4 h-4 text-obsidian-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+              <span>Inspect & Remediate</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 2: Agent Live Pipeline & Bug Identification -->
+      <section id="pipeline-section" class="grid grid-cols-1 lg:grid-cols-12 gap-6 opacity-40 pointer-events-none transition-all duration-500">
+        
+        <!-- Live Terminal Stream (7 Cols) -->
+        <div class="lg:col-span-7 bg-obsidian-900 border border-obsidian-800 rounded-2xl overflow-hidden shadow-xl flex flex-col">
+          <div class="px-4 py-3 bg-obsidian-850 border-b border-obsidian-800 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500/80 inline-block"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-500/80 inline-block"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block"></span>
+              </div>
+              <span class="ml-2 font-mono text-xs text-slate-300 font-medium">vidhata-agent://ast-traversal-daemon</span>
+            </div>
+            <div id="agent-status-badge" class="font-mono text-[10px] px-2 py-0.5 rounded bg-obsidian-800 text-slate-400 border border-obsidian-700">
+              STANDBY
+            </div>
+          </div>
+
+          <div id="terminal-logs" class="p-4 font-mono text-xs text-slate-300 h-64 overflow-y-auto space-y-1.5 bg-obsidian-950/90 leading-relaxed">
+            <div class="text-slate-600">// Agent standing by. Click 'Inspect & Remediate' to trigger scan.</div>
+          </div>
+        </div>
+
+        <!-- Discovered Vulnerabilities Panel (5 Cols) -->
+        <div class="lg:col-span-5 bg-obsidian-900 border border-obsidian-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="px-2 py-0.5 rounded text-[11px] font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20">DETECTION ENGINE</span>
+              <span id="detected-counter" class="text-xs font-mono text-slate-400">0 vulnerabilities found</span>
+            </div>
+            <h3 class="text-base font-bold text-white mb-3">Identified Code Defect</h3>
+
+            <!-- Bug Info Card -->
+            <div id="bug-card" class="bg-obsidian-950 border border-obsidian-800 rounded-xl p-4 text-xs font-mono space-y-2.5 min-h-[170px] flex flex-col justify-center text-slate-500">
+              <span>Run repository inspection to display vulnerability telemetry.</span>
+            </div>
+          </div>
+
+          <div class="mt-4 pt-3 border-t border-obsidian-800 flex items-center justify-between text-[11px] font-mono text-slate-400">
+            <span>Isolation: <strong>Zero Egress VPC</strong></span>
+            <span class="text-cyanAccent font-semibold">AST Depth: 3 levels</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 3: Patch Drafting & Unified Git Diff Inspector -->
+      <section id="diff-section" class="bg-obsidian-900 border border-obsidian-800 rounded-2xl overflow-hidden shadow-xl opacity-40 pointer-events-none transition-all duration-500">
+        <div class="px-5 py-3.5 bg-obsidian-850 border-b border-obsidian-800 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <span class="px-2 py-0.5 rounded text-[11px] font-mono bg-cyanAccent/10 text-cyanAccent border border-cyanAccent/20">STEP 3</span>
+            <h3 class="text-sm sm:text-base font-bold text-white">Synthesized Unified Git Diff</h3>
+            <span id="diff-file-badge" class="font-mono text-xs px-2.5 py-0.5 rounded bg-obsidian-800 text-slate-300 border border-obsidian-700">
+              src/auth/session.ts
+            </span>
+          </div>
+
+          <div class="text-xs font-mono text-slate-400">
+            Candidate Branch: <span class="text-cyanAccent">vidhata/patch-remediation</span>
+          </div>
+        </div>
+
+        <!-- Diff Viewport -->
+        <div class="p-4 bg-obsidian-950 font-mono text-xs overflow-x-auto leading-6">
+          <div id="diff-content" class="space-y-0.5">
+            <div class="text-slate-600 italic">No patch synthesized yet.</div>
+          </div>
+        </div>
+
+        <!-- AI Explanation of Fix -->
+        <div class="p-4 bg-obsidian-900/90 border-t border-obsidian-800 flex items-start gap-3">
+          <div class="w-6 h-6 rounded-lg bg-cyanAccent/10 text-cyanAccent flex items-center justify-center shrink-0 mt-0.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="text-xs font-bold text-white font-mono uppercase tracking-wider">AI Patch Rationale</div>
+            <p id="patch-rationale" class="text-xs text-slate-300 mt-1 leading-relaxed">
+              Patch awaiting generation.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 4: Human Approval Gate & Sandboxed Execution -->
+      <section id="gate-section" class="bg-gradient-to-br from-obsidian-900 to-obsidian-950 border-2 border-obsidian-800 rounded-2xl p-6 shadow-2xl opacity-40 pointer-events-none transition-all duration-500">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-obsidian-800">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-goldAccent animate-pulse"></span>
+              <span class="px-2 py-0.5 rounded text-[11px] font-mono bg-goldAccent/10 text-goldAccent border border-goldAccent/20 font-bold">STEP 4: HUMAN APPROVAL GATE</span>
+            </div>
+            <h3 class="text-lg font-bold text-white mt-1">Review & Sanction Patch Deployment</h3>
+            <p class="text-xs text-slate-400 mt-0.5">Vidhata AI requires deterministic human consent before executing code mutations in the test sandbox.</p>
+          </div>
+
+          <!-- Buttons -->
+          <div class="flex items-center gap-3">
+            <button id="reject-btn" onclick="handleGateDecision(false)" class="px-4 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 font-mono text-xs font-semibold flex items-center gap-2 transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+              <span>Reject / Re-Roll</span>
+            </button>
+
+            <button id="approve-btn" onclick="handleGateDecision(true)" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-tealAccent text-obsidian-950 font-bold text-xs sm:text-sm font-mono flex items-center gap-2 hover:shadow-lg hover:shadow-emerald-500/20 transition">
+              <svg class="w-4 h-4 text-obsidian-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+              </svg>
+              <span>Approve & Apply Patch</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Sandbox Runner Result & Final Commit Output (Reveals after approval) -->
+        <div id="sandbox-output-block" class="mt-6 hidden space-y-4">
+          <div class="flex items-center justify-between text-xs font-mono">
+            <span class="text-slate-400">Micro-Container Verification Suite:</span>
+            <span id="test-badge" class="px-2 py-0.5 rounded bg-cyanAccent/10 text-cyanAccent border border-cyanAccent/20">TEST RUNNING...</span>
+          </div>
+
+          <div id="test-output-log" class="p-4 rounded-xl bg-obsidian-950 border border-obsidian-800 font-mono text-xs text-emerald-400 space-y-1">
+            <!-- Simulated Jest / Pytest logs will stream here -->
+          </div>
+
+          <!-- Final Git Actions -->
+          <div id="final-git-box" class="hidden p-4 rounded-xl bg-obsidian-850 border border-cyanAccent/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div class="text-xs font-bold text-white font-mono">Remediation Successfully Verified!</div>
+              <div class="text-xs text-slate-400 font-mono mt-0.5">Commit: <span id="commit-hash" class="text-cyanAccent">8a4f91c</span> • Patch clean ready for pull request</div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button onclick="copyPatchCommand()" id="copy-git-btn" class="px-3.5 py-2 rounded-lg bg-obsidian-800 hover:bg-obsidian-750 border border-obsidian-700 text-xs font-mono text-slate-200 transition flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
+                </svg>
+                <span>Copy Git Patch Cmd</span>
+              </button>
+
+              <button onclick="downloadPatchFile()" class="px-3.5 py-2 rounded-lg bg-cyanAccent text-obsidian-950 font-bold text-xs font-mono transition flex items-center gap-1.5 hover:bg-tealAccent">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                <span>Download .diff</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-obsidian-800 bg-obsidian-950 py-4 text-center text-xs font-mono text-slate-500">
+      Vidhata AI • Developer Workflow Agent • Pure Privacy-First Local Remediation
+    </footer>
+  </div>
+
+
+  <!-- ======================================================== -->
+  <!-- 3. VANILLA JAVASCRIPT STATE ENGINE                       -->
+  <!-- ======================================================== -->
+  <script>
+    // PRESET REPOSITORY SCENARIOS
+    const PRESETS = {
+      express: {
+        repo: "https://github.com/acme-corp/express-jwt-service",
+        branch: "main",
+        file: "src/auth/sessionManager.ts",
+        severity: "CRITICAL",
+        vulnType: "CWE-362: Concurrent Execution using Shared Resource with Improper Synchronization ('Race Condition')",
+        lineNumbers: "L42-L58",
+        description: "Concurrent refresh token requests allow duplicate sessions without invalidation, enabling session hijacking.",
+        diffLines: [
+          { type: 'context', text: "@@ -40,6 +40,14 @@ export class SessionManager {" },
+          { type: 'context', text: "   private tokenStore: TokenStore;" },
+          { type: 'add',     text: "+  private mutexLocks = new Map<string, Promise<TokenResult>>();" },
+          { type: 'context', text: " " },
+          { type: 'context', text: "   async rotateToken(userId: string, refreshToken: string): Promise<string> {" },
+          { type: 'del',     text: "-    const valid = await this.tokenStore.validate(userId, refreshToken);" },
+          { type: 'del',     text: "-    return await this.tokenStore.issueNewToken(userId);" },
+          { type: 'add',     text: "+    if (this.mutexLocks.has(userId)) {" },
+          { type: 'add',     text: "+      return (await this.mutexLocks.get(userId)!).token;" },
+          { type: 'add',     text: "+    }" },
+          { type: 'add',     text: "+    const lockPromise = this.atomicRotate(userId, refreshToken);" },
+          { type: 'add',     text: "+    this.mutexLocks.set(userId, lockPromise);" },
+          { type: 'add',     text: "+    try { return (await lockPromise).token; } finally { this.mutexLocks.delete(userId); }" },
+          { type: 'context', text: "   }" },
+        ],
+        explanation: "Introduced an in-memory asynchronous mutex map keyed by userId. Subsequent concurrent refresh requests now await the ongoing promise rather than minting rogue secondary tokens.",
+        testLog: [
+          "PASS src/auth/__tests__/sessionManager.test.ts",
+          "  ✓ rejects invalidated refresh token reuse (3ms)",
+          "  ✓ serializes 50 simultaneous parallel token rotations (14ms)",
+          "  ✓ cleans up mutex promise on rejection (2ms)",
+          "",
+          "Test Suites: 1 passed, 1 total",
+          "Tests:       3 passed, 3 total",
+          "Time:        0.842 s"
+        ]
+      },
+
+      stripe: {
+        repo: "https://github.com/saas-core/billing-webhook-service",
+        branch: "develop",
+        file: "src/billing/stripeWebhook.ts",
+        severity: "HIGH",
+        vulnType: "TypeError: Cannot read properties of undefined (reading 'payment_intent')",
+        lineNumbers: "L88-L95",
+        description: "Zero-dollar trial subscriptions omit invoice.payment_intent, crashing unhandled webhook handlers.",
+        diffLines: [
+          { type: 'context', text: "@@ -87,4 +87,8 @@ export async function handleInvoice(event: Stripe.Event) {" },
+          { type: 'context', text: "   const invoice = event.data.object as Stripe.Invoice;" },
+          { type: 'del',     text: "-  const intentId = invoice.payment_intent as string;" },
+          { type: 'del',     text: "-  await recordLedgerTransaction(intentId, invoice.amount_paid);" },
+          { type: 'add',     text: "+  const intentId = invoice.payment_intent ? String(invoice.payment_intent) : null;" },
+          { type: 'add',     text: "+  if (!intentId && invoice.amount_paid === 0) {" },
+          { type: 'add',     text: "+    return { status: 'skipped_zero_dollar_invoice' };" },
+          { type: 'add',     text: "+  }" },
+          { type: 'add',     text: "+  await recordLedgerTransaction(intentId!, invoice.amount_paid);" },
+          { type: 'context', text: " }" },
+        ],
+        explanation: "Added safe ternary operator checking and early-return filter for 0-dollar trial invoices without associated payment intents.",
+        testLog: [
+          "PASS src/billing/__tests__/stripeWebhook.test.ts",
+          "  ✓ processes standard payment_intent event (9ms)",
+          "  ✓ skips zero-dollar trial webhook gracefully (4ms)",
+          "",
+          "Test Suites: 1 passed, 1 total",
+          "Tests:       2 passed, 2 total",
+          "Time:        0.612 s"
+        ]
+      },
+
+      fastapi: {
+        repo: "https://github.com/data-infra/analytics-fastapi",
+        branch: "main",
+        file: "app/db/query_builder.py",
+        severity: "CRITICAL",
+        vulnType: "CWE-89: SQL Injection via Raw Interpolation in Dynamic Order Clause",
+        lineNumbers: "L54-L62",
+        description: "Unsanitized user-supplied sort parameter concatenated directly into raw database query string.",
+        diffLines: [
+          { type: 'context', text: "@@ -53,3 +53,7 @@ def query_records(sort_col: str, filter_val: str):" },
+          { type: 'del',     text: "-    query = f\"SELECT * FROM records WHERE status = '{filter_val}' ORDER BY {sort_col}\"" },
+          { type: 'del',     text: "-    return db.execute_raw(query)" },
+          { type: 'add',     text: "+    ALLOWED_COLS = {'created_at', 'id', 'user_email'}" },
+          { type: 'add',     text: "+    safe_col = sort_col if sort_col in ALLOWED_COLS else 'created_at'" },
+          { type: 'add',     text: "+    query = \"SELECT * FROM records WHERE status = :filter ORDER BY \" + safe_col" },
+          { type: 'add',     text: "+    return db.execute(query, {'filter': filter_val})" },
+        ],
+        explanation: "Replaced raw f-string concatenation with parameterized bind variables and an explicit column whitelist whitelist check.",
+        testLog: [
+          "rootdir: /workspace/analytics-fastapi",
+          "collected 3 items",
+          "",
+          "test_query.py::test_safe_sort PASSED              [ 33%]",
+          "test_query.py::test_sql_injection_attempt PASSED  [ 66%]",
+          "test_query.py::test_parameter_binding PASSED     [100%]",
+          "",
+          "3 passed in 0.44s"
+        ]
+      }
+    };
+
+    let activePresetKey = 'express';
+    let isInspecting = false;
+
+    // 1. Initial Loading Screen Animation Controller
+    window.addEventListener('load', () => {
+      const bar = document.getElementById('loading-bar');
+      const text = document.getElementById('loading-text');
+      
+      // Start bar animation
+      setTimeout(() => {
+        bar.style.width = '100%';
+      }, 50);
+
+      setTimeout(() => {
+        text.innerText = "Attaching Tree-Sitter Parser & Local LLM...";
+      }, 900);
+
+      // Transition to Main Screen
+      setTimeout(() => {
+        const screen = document.getElementById('loading-screen');
+        const main = document.getElementById('main-app');
+        
+        screen.classList.add('opacity-0', 'pointer-events-none');
+        main.classList.remove('opacity-0');
+        main.classList.add('opacity-100');
+
+        setTimeout(() => {
+          screen.remove();
+        }, 750);
+      }, 1800);
+    });
+
+    // Preset Selection
+    function selectPreset(key) {
+      if (isInspecting) return;
+      activePresetKey = key;
+      const data = PRESETS[key];
+      document.getElementById('repo-url-input').value = data.repo;
+      document.getElementById('branch-select').value = data.branch;
+      restartWorkflow();
+    }
+
+    // Append to Terminal Log
+    function logTerm(msg, colorClass = "text-slate-300") {
+      const term = document.getElementById('terminal-logs');
+      const div = document.createElement('div');
+      div.className = colorClass;
+      div.innerText = msg;
+      term.appendChild(div);
+      term.scrollTop = term.scrollHeight;
+    }
+
+    // Step 2 & 3: Autonomous Inspection
+    async function startAutonomousInspection() {
+      if (isInspecting) return;
+      isInspecting = true;
+
+      const inspectBtn = document.getElementById('inspect-btn');
+      inspectBtn.disabled = true;
+      inspectBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+      const data = PRESETS[activePresetKey];
+      const repoUrl = document.getElementById('repo-url-input').value;
+      const branch = document.getElementById('branch-select').value;
+
+      // Unlock Pipeline Section
+      const pipelineSec = document.getElementById('pipeline-section');
+      pipelineSec.classList.remove('opacity-40', 'pointer-events-none');
+      document.getElementById('agent-status-badge').innerText = "SCANNING";
+      document.getElementById('agent-status-badge').className = "font-mono text-[10px] px-2 py-0.5 rounded bg-cyanAccent/20 text-cyanAccent border border-cyanAccent/40 animate-pulse";
+
+      logTerm(`> vidhata clone ${repoUrl} --branch ${branch} --depth 1`, "text-cyanAccent");
+      await sleep(400);
+      logTerm("[AST Engine] Parsing syntax graph across repository modules...", "text-slate-400");
+      await sleep(500);
+      logTerm(`[Scanner] Evaluating semantic call-chains in ${data.file}...`, "text-tealAccent");
+      await sleep(600);
+      logTerm(`[ALERT] Flaw detected: ${data.vulnType}`, "text-rose-400 font-bold");
+      
+      // Update Bug Card
+      document.getElementById('detected-counter').innerText = "1 vulnerability found";
+      document.getElementById('detected-counter').className = "text-xs font-mono text-rose-400 font-bold";
+
+      document.getElementById('bug-card').innerHTML = `
+        <div class="flex items-center justify-between">
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">${data.severity}</span>
+          <span class="text-slate-400">${data.lineNumbers}</span>
+        </div>
+        <div class="text-white font-bold text-xs">${data.vulnType}</div>
+        <div class="text-slate-400 text-[11px] leading-relaxed">${data.description}</div>
+        <div class="pt-2 text-[10px] text-cyanAccent border-t border-obsidian-800">File: ${data.file}</div>
+      `;
+
+      await sleep(600);
+      logTerm("[Local LLM: DeepSeek-Coder] Synthesizing context-aware AST patch...", "text-slate-200");
+      await sleep(800);
+      logTerm("[DiffEngine] POSIX unified git diff constructed.", "text-goldAccent");
+
+      // Unlock Step 3: Diff Section
+      const diffSec = document.getElementById('diff-section');
+      diffSec.classList.remove('opacity-40', 'pointer-events-none');
+      document.getElementById('diff-file-badge').innerText = data.file;
+
+      // Render Diff Lines
+      const diffContainer = document.getElementById('diff-content');
+      diffContainer.innerHTML = '';
+      data.diffLines.forEach(line => {
+        const row = document.createElement('div');
+        if (line.type === 'add') {
+          row.className = "diff-add px-2 py-0.5";
+        } else if (line.type === 'del') {
+          row.className = "diff-del px-2 py-0.5";
+        } else {
+          row.className = "diff-context px-2 py-0.5";
+        }
+        row.textContent = line.text;
+        diffContainer.appendChild(row);
+      });
+
+      document.getElementById('patch-rationale').innerText = data.explanation;
+
+      // Unlock Step 4: Human Approval Gate
+      const gateSec = document.getElementById('gate-section');
+      gateSec.classList.remove('opacity-40', 'pointer-events-none');
+      gateSec.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+      document.getElementById('agent-status-badge').innerText = "PAUSED (GATE)";
+      document.getElementById('agent-status-badge').className = "font-mono text-[10px] px-2 py-0.5 rounded bg-goldAccent/20 text-goldAccent border border-goldAccent/40";
+      logTerm("[Human Gate] Execution suspended. Awaiting developer sign-off...", "text-goldAccent font-bold");
+    }
+
+    // Step 4: Human Gate Decision Handler
+    async function handleGateDecision(isApproved) {
+      const approveBtn = document.getElementById('approve-btn');
+      const rejectBtn = document.getElementById('reject-btn');
+      approveBtn.disabled = true;
+      rejectBtn.disabled = true;
+
+      if (!isApproved) {
+        logTerm("[Human Gate] REJECTED by developer. Patch rolled back.", "text-rose-400 font-bold");
+        document.getElementById('agent-status-badge').innerText = "ABORTED";
+        document.getElementById('agent-status-badge').className = "font-mono text-[10px] px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/40";
+        alert("Patch was rejected. You can tweak parameters or reset to test another scenario.");
+        isInspecting = false;
+        return;
+      }
+
+      // Approved Flow
+      logTerm("[Human Gate] APPROVED with developer cryptographic key.", "text-emerald-400 font-bold");
+      document.getElementById('agent-status-badge').innerText = "SANDBOX RUNNING";
+      document.getElementById('agent-status-badge').className = "font-mono text-[10px] px-2 py-0.5 rounded bg-cyanAccent/20 text-cyanAccent border border-cyanAccent/40 animate-pulse";
+
+      const outputBox = document.getElementById('sandbox-output-block');
+      outputBox.classList.remove('hidden');
+
+      const testLogBox = document.getElementById('test-output-log');
+      testLogBox.innerHTML = "<div class='text-slate-400'>Spinning up micro-sandbox container (alpine-node-isolated)...</div>";
+
+      await sleep(600);
+      const data = PRESETS[activePresetKey];
+      testLogBox.innerHTML = '';
+      
+      for (const line of data.testLog) {
+        const l = document.createElement('div');
+        l.innerText = line;
+        testLogBox.appendChild(l);
+        await sleep(200);
+      }
+
+      document.getElementById('test-badge').innerText = "ALL CHECKS PASSED (100%)";
+      document.getElementById('test-badge').className = "px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold";
+
+      document.getElementById('final-git-box').classList.remove('hidden');
+      logTerm("[GitOps] Ready to commit. Remediation cycle finished successfully.", "text-emerald-400 font-bold");
+
+      document.getElementById('agent-status-badge').innerText = "COMPLETED";
+      document.getElementById('agent-status-badge').className = "font-mono text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-bold";
+      
+      isInspecting = false;
+    }
+
+    // Reset Workflow to Starting Condition
+    function restartWorkflow() {
+      isInspecting = false;
+
+      const inspectBtn = document.getElementById('inspect-btn');
+      inspectBtn.disabled = false;
+      inspectBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+      // Reset Pipeline
+      const pipelineSec = document.getElementById('pipeline-section');
+      pipelineSec.classList.add('opacity-40', 'pointer-events-none');
+      document.getElementById('agent-status-badge').innerText = "STANDBY";
+      document.getElementById('agent-status-badge').className = "font-mono text-[10px] px-2 py-0.5 rounded bg-obsidian-800 text-slate-400 border border-obsidian-700";
+
+      document.getElementById('terminal-logs').innerHTML = `
+        <div class="text-slate-600">// Agent standing by. Click 'Inspect & Remediate' to trigger scan.</div>
+      `;
+
+      document.getElementById('detected-counter').innerText = "0 vulnerabilities found";
+      document.getElementById('detected-counter').className = "text-xs font-mono text-slate-400";
+      document.getElementById('bug-card').innerHTML = `
+        <span>Run repository inspection to display vulnerability telemetry.</span>
+      `;
+
+      // Reset Diff
+      const diffSec = document.getElementById('diff-section');
+      diffSec.classList.add('opacity-40', 'pointer-events-none');
+      document.getElementById('diff-content').innerHTML = `
+        <div class="text-slate-600 italic">No patch synthesized yet.</div>
+      `;
+      document.getElementById('patch-rationale').innerText = "Patch awaiting generation.";
+
+      // Reset Gate
+      const gateSec = document.getElementById('gate-section');
+      gateSec.classList.add('opacity-40', 'pointer-events-none');
+      document.getElementById('approve-btn').disabled = false;
+      document.getElementById('reject-btn').disabled = false;
+
+      document.getElementById('sandbox-output-block').classList.add('hidden');
+      document.getElementById('final-git-box').classList.add('hidden');
+    }
+
+    // Helper: Sleep
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // Copy Git Command Action
+    function copyPatchCommand() {
+      const cmd = `git fetch origin vidhata/patch-remediation && git cherry-pick FETCH_HEAD`;
+      copyToClipboard(cmd, document.getElementById('copy-git-btn'));
+    }
+
+    // Download Diff File
+    function downloadPatchFile() {
+      const data = PRESETS[activePresetKey];
+      let diffContent = `# Patch generated by Vidhata AI Agent\n# Target: ${data.file}\n\n`;
+      data.diffLines.forEach(l => {
+        diffContent += l.text + "\n";
+      });
+
+      const blob = new Blob([diffContent], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `vidhata-patch-${activePresetKey}.diff`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // Clipboard Helper
+    function copyToClipboard(text, triggerEl) {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+
+      try {
+        document.execCommand('copy');
+        const originalText = triggerEl.innerHTML;
+        triggerEl.innerHTML = `<span class="text-emerald-400 font-bold">Copied!</span>`;
+        setTimeout(() => {
+          triggerEl.innerHTML = originalText;
+        }, 1800);
+      } catch (err) {
+        console.error("Clipboard copy error", err);
+      }
+      document.body.removeChild(ta);
+    }
+  </script>
+</body>
+</html>
